@@ -48,7 +48,8 @@ Die Datei [tools.json](../../tools.json) listet alle Tools. Ein Eintrag hat dies
 | `title` | Anzeigename für Release-Notes und `versions.json` |
 | `repo` | GitHub-Repository, z. B. `SVWS-NRW/SVWS-Import` |
 | `asset` | Dateiname des Web-App-ZIPs im Release, `{version}` steht für die Versionsnummer ohne führendes `v` |
-| `version` | optional: feste Version statt latest (Release-Tag `v<version>`) |
+| `version` | `null` = latest Release, sonst feste Version ohne führendes `v` (Release-Tag `v<version>`) |
+| `patches` | optional: Liste von `{ file, search, replace }`, ersetzt nach dem Entpacken Textstellen in Dateien des Tools |
 | `path` | nur für Inhalte aus diesem Repository: Quellordner, z. B. `src/start` (dann entfallen `repo` und `asset`) |
 
 ### Ordnernamen
@@ -57,20 +58,34 @@ Die Zielordner unter `tools/` sind verbindlich: `konferenz`, `import`, `prognos`
 
 ### Startseite
 
-Die Startseite liegt unter [src/start/](../../src/start/) und wird in diesem Repository gepflegt. Sie verlinkt die Tools relativ über ihre Zielordner (z. B. `../konferenz`).
+Die Startseite liegt unter [src/start/](../../src/start/) und wird in diesem Repository gepflegt. Sie verlinkt die Tools relativ über ihre Zielordner (z. B. `../konferenz`). Jede Kachel trägt einen Namen im Attribut `data-tool`, auch die Kacheln für SVWS-Client, Admin, Dokumentation und Open-API (`client`, `admin`, `dokumentation`, `openapi`).
+
+### Sichtbarkeit der Kacheln
+
+Der IT-Dienstleister entscheidet, welche Kacheln in der Schule sichtbar sind. Dazu legt er `start/sichtbarkeit.js` an, die `window.SVWS_TOOLS_SICHTBARKEIT` setzt (Name → `true`/`false`). Die Startseite bindet die Datei per `<script>` ein und blendet Kacheln mit `false` aus. Fehlt die Datei oder ein Eintrag, bleibt die Kachel sichtbar.
+
+Die Datei ist bewusst nicht im Paket enthalten, damit ein Update die Einstellungen nicht überschreibt. Mitgeliefert wird nur die Vorlage `start/sichtbarkeit.example.js`, die der Build aus den `data-tool`-Attributen der Startseite erzeugt.
+
+JavaScript statt JSON, weil der SVWS-Server unter `/app/` nur Dateien innerhalb eines App-Ordners und nur bestimmte Typen ausliefert (`.html`, `.js`, `.css`, Bilder, Schriften), aber kein `.json` (siehe `APIApps` im SVWS-Server). Aus demselben Grund ist `versions.json` im Browser nicht abrufbar; sie dient nur der Dokumentation im Paket. Der Server ermittelt die vorhandenen Dateien beim Start, eine neu angelegte `sichtbarkeit.js` wird daher erst nach einem Neustart ausgeliefert.
+
+Verworfen wurden:
+- ein Feld `visible` in `versions.json`: Diese Datei wird bei jedem Update ersetzt, die Einstellungen gingen verloren.
+- `tools/sichtbarkeit.json`: Wird vom SVWS-Server nicht ausgeliefert (siehe oben).
 
 ### Build
 
 `npm run build` ([scripts/build.mjs](../../scripts/build.mjs)):
 
 1. leert `build/` und entfernt alte Ausgaben in `release/`,
-2. ermittelt pro Tool über die GitHub-API das latest Release (oder das Release zur festen Version),
-3. lädt das passende Asset und entpackt es nach `build/svws-tools/tools/<name>/` bzw. kopiert den lokalen Ordner,
+2. ermittelt pro Tool das Release-Tag: bei fester Version direkt, sonst über die Weiterleitung von `https://github.com/<repo>/releases/latest`,
+3. lädt das Asset über den öffentlichen Download-Link (oder nimmt es aus dem Cache `.cache/downloads/`) und entpackt es nach `build/svws-tools/tools/<name>/` bzw. kopiert den lokalen Ordner,
 4. prüft, dass in jedem Zielordner eine `index.html` liegt,
-5. schreibt `tools/versions.json` mit Paketversion und Tool-Versionen,
+5. schreibt `tools/versions.json` mit Paketversion und Tool-Versionen sowie die Vorlage `tools/start/sichtbarkeit.example.js`,
 6. erzeugt `release/svws-tools.zip` und `release/RELEASE_NOTES.md`.
 
 Jeder Fehler bricht den Build ab.
+
+Der Build verwendet bewusst nicht die GitHub-API: Ohne Anmeldung erlaubt sie nur 60 Anfragen pro Stunde und IP-Adresse, was bei wiederholten Builds schnell erreicht war. Weiterleitung und Download-Links unterliegen diesem Limit nicht. Nur wenn ein Asset fehlt, wird die API einmal gefragt, um die vorhandenen Dateien in der Fehlermeldung aufzulisten.
 
 ### Versionierung
 
@@ -88,7 +103,9 @@ npm run release [patch|minor|major|<x.y.z>]
 
 ### Inhalt der Tools
 
-Die Web-App-ZIPs werden unverändert übernommen. Konfigurations- und Impressumsdateien (`config.js`, `impressum.example.js`) bleiben, wie sie sind. Anpassen können sie der Installer oder der SVWS-Server.
+Die Web-App-ZIPs werden grundsätzlich unverändert übernommen. Konfigurations- und Impressumsdateien (`config.js`, `impressum.example.js`) können der Installer oder der SVWS-Server anpassen.
+
+Ausnahme sind gezielte Standardwerte, die über `patches` in `tools.json` gesetzt werden. Aktuell: In GradeHub ist `admintoolVisible: true` in `config.js` aktiv (im Original auskommentiert). Ein Patch, dessen Suchtext fehlt, bricht den Build ab, damit Änderungen in neuen Tool-Versionen auffallen.
 
 ### Kompatibilität
 
@@ -106,6 +123,7 @@ Das Paket gibt keine Mindestversion des SVWS-Servers an.
 - Abhängigkeit von den Asset-Namenskonventionen der Quell-Repositories: Benennt ein Tool sein Asset um, muss die Konfiguration angepasst werden. Der Build schlägt dann aber sichtbar fehl (siehe Ziel 8).
 - „Latest“ eines Quell-Repositorys wird ungeprüft übernommen, solange keine feste Version eingetragen ist.
 - Die Laufbahnplanung hängt am Release-Zyklus des SVWS-Servers.
+- Der Installer darf bei einem Update den Ordner `start/` nicht komplett löschen, sonst geht `sichtbarkeit.js` verloren.
 - Für das Release werden lokal Node.js, `zip`, `unzip` und eine angemeldete GitHub CLI (`gh`) benötigt.
 
 ## Geklärte Fragen
@@ -114,6 +132,7 @@ Das Paket gibt keine Mindestversion des SVWS-Servers an.
 - **Ordnername Konferenz (2026-10-14):** `konferenz` ist verbindlich. Der Link auf der Startseite wurde von `../conference` auf `../konferenz` korrigiert.
 - **Startseite (2026-10-14):** Wird in diesem Repository gepflegt, Ablage unter `src/start/` (2026-10-15).
 - **Auslöser für Releases (2026-10-15):** Manuell per `npm run release`, wie im Projekt SVWS-Import.
-- **Feste Versionen (2026-10-15):** Optionales Feld `version` pro Tool, ohne Angabe gilt latest.
-- **Konfigurations- und Impressumsdateien (2026-10-15):** Werden unverändert mitgeliefert.
+- **Feste Versionen (2026-10-15):** Feld `version` pro Tool, `null` (oder fehlend) bedeutet latest.
+- **Konfigurations- und Impressumsdateien (2026-10-15):** Werden unverändert mitgeliefert, Ausnahmen über `patches` (GradeHub: `admintoolVisible: true`).
 - **Mindestversion SVWS-Server (2026-10-15):** Vorerst keine.
+- **Sichtbarkeit auf der Startseite (2026-10-15):** Eigene Datei `start/sichtbarkeit.js`, gepflegt vom IT-Dienstleister, nicht im Paket enthalten. Alle Kacheln sind schaltbar. JavaScript statt JSON, weil der SVWS-Server kein `.json` ausliefert.

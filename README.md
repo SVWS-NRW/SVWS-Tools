@@ -12,7 +12,7 @@ Hintergrund und Entscheidungen: [docs/adr/adr001-svws-tools-deployment.md](docs/
 
 ```
 tools/
-├── start/          Startseite (aus src/start)
+├── start/          Startseite (aus src/start) mit Vorlage sichtbarkeit.example.js
 ├── konferenz/      SVWS-Conference
 ├── import/         SVWS-Import
 ├── prognos/        SVWS-Prognos
@@ -23,6 +23,33 @@ tools/
 
 Jedes Tool liegt mit seiner `index.html` direkt in `tools/<name>/`. Die Ordnernamen sind verbindlich.
 
+## Kacheln auf der Startseite ein- und ausblenden
+
+Der IT-Dienstleister entscheidet, welche Kacheln in der Schule auf der Startseite erscheinen. Dazu kopiert er auf dem Server im Ordner der Startseite die Vorlage `start/sichtbarkeit.example.js` nach `start/sichtbarkeit.js` und setzt die gewünschten Kacheln auf `false`:
+
+```js
+window.SVWS_TOOLS_SICHTBARKEIT = {
+  "client": true,
+  "admin": false,
+  "dokumentation": true,
+  "konferenz": true,
+  "gradehub": true,
+  "import": true,
+  "laufbahn": true,
+  "prognos": false,
+  "openapi": false
+};
+```
+
+- Nur `false` blendet aus. Fehlt ein Eintrag oder die ganze Datei, bleibt die Kachel sichtbar.
+- Ausgeblendete Tools bleiben installiert und sind über ihre URL weiter erreichbar.
+- **SVWS-Server neu starten, wenn die Datei neu angelegt wurde.** Der Server ermittelt die Dateien unter `/app/` nur beim Start. Spätere Änderungen an einer vorhandenen `sichtbarkeit.js` wirken dagegen sofort.
+- `sichtbarkeit.js` ist nicht im Paket enthalten und wird deshalb bei einem Update nicht überschrieben. Der Installer darf beim Update nur die mitgelieferten Dateien ersetzen und nicht den Ordner `start/` komplett löschen.
+
+Warum JavaScript und nicht JSON: Der SVWS-Server liefert unter `/app/` nur Dateien in einem App-Ordner und nur bestimmte Typen aus (`.html`, `.js`, `.css`, Bilder, Schriften), aber kein `.json`.
+
+Die Namen der Kacheln stehen im Attribut `data-tool` der Startseite [src/start/index.html](src/start/index.html). Der Build erzeugt die Vorlage daraus automatisch.
+
 ## Tools verwalten
 
 Alle Tools stehen in [tools.json](tools.json):
@@ -32,7 +59,8 @@ Alle Tools stehen in [tools.json](tools.json):
   "name": "import",
   "title": "SVWS-Import",
   "repo": "SVWS-NRW/SVWS-Import",
-  "asset": "SVWS-Import-{version}-webapp.zip"
+  "asset": "SVWS-Import-{version}-webapp.zip",
+  "version": null
 }
 ```
 
@@ -42,12 +70,23 @@ Alle Tools stehen in [tools.json](tools.json):
 | `title` | Anzeigename für Release-Notes und `versions.json` |
 | `repo` | GitHub-Repository des Tools |
 | `asset` | Dateiname des Web-App-ZIPs im Release, `{version}` = Version ohne führendes `v` |
-| `version` | optional: feste Version statt latest, z. B. `"0.3.3"` (Release-Tag `v0.3.3`) |
+| `version` | `null` = latest Release, sonst feste Version ohne führendes `v`, z. B. `"0.3.3"` (Release-Tag `v0.3.3`) |
 | `path` | nur für Inhalte aus diesem Repository, z. B. `"src/start"` |
+| `patches` | optional: Textstellen in ausgelieferten Dateien ersetzen, siehe unten |
 
-**Neues Tool aufnehmen:** Eintrag in `tools.json` ergänzen und auf der Startseite [src/start/index.html](src/start/index.html) verlinken (`../<name>`).
+**Neues Tool aufnehmen:** Eintrag in `tools.json` ergänzen und auf der Startseite [src/start/index.html](src/start/index.html) eine Kachel mit `href="../<name>"` und `data-tool="<name>"` anlegen. Fehlt die Kachel, warnt der Build.
 
-**Fehlerhaftes Tool-Release überspringen:** `version` auf die letzte funktionierende Version setzen. Hatte das Asset in dieser Version einen anderen Namen, muss auch `asset` angepasst werden.
+**Dateien eines Tools anpassen:** Mit `patches` ersetzt der Build nach dem Entpacken einzelne Textstellen, z. B. um in GradeHub den Adminbereich standardmäßig einzuschalten:
+
+```json
+"patches": [
+  { "file": "config.js", "search": "// admintoolVisible: true,", "replace": "admintoolVisible: true," }
+]
+```
+
+Ersetzt wird das erste Vorkommen. Fehlt die Datei oder die gesuchte Stelle, z. B. weil eine neue Tool-Version die Datei geändert hat, bricht der Build ab.
+
+**Fehlerhaftes Tool-Release überspringen:** `version` von `null` auf die letzte funktionierende Version setzen. Hatte das Asset in dieser Version einen anderen Namen, muss auch `asset` angepasst werden.
 
 ## Voraussetzungen
 
@@ -55,7 +94,7 @@ Alle Tools stehen in [tools.json](tools.json):
 - `zip` und `unzip`
 - für Releases: [GitHub CLI](https://cli.github.com/) (`gh auth login`)
 
-Für die Abfragen an die GitHub-API wird `GITHUB_TOKEN` oder das Token der GitHub CLI verwendet, falls vorhanden. Ohne Token gilt ein Limit von 60 Anfragen pro Stunde.
+Der Build braucht keine GitHub-API und unterliegt daher keinem API-Limit: Das aktuelle Release ermittelt er über die Weiterleitung von `https://github.com/<repo>/releases/latest`, die ZIPs lädt er über die öffentlichen Download-Links.
 
 ## Bauen
 
@@ -63,7 +102,7 @@ Für die Abfragen an die GitHub-API wird `GITHUB_TOKEN` oder das Token der GitHu
 npm run build
 ```
 
-Erzeugt `release/svws-tools.zip` und `release/RELEASE_NOTES.md`. Zwischenstände liegen in `build/`. Fehlt ein Asset oder ist eine `index.html` nicht vorhanden, bricht der Build ab.
+Erzeugt `release/svws-tools.zip` und `release/RELEASE_NOTES.md`. Zwischenstände liegen in `build/`. Heruntergeladene ZIPs bleiben in `.cache/downloads/` und werden wiederverwendet, solange sich die Version nicht ändert. Den Cache leeren mit `rm -rf .cache`. Fehlt ein Asset oder ist eine `index.html` nicht vorhanden, bricht der Build ab.
 
 ## Release erstellen
 

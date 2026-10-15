@@ -1,9 +1,10 @@
 # Abhängigkeiten
 node_modules/
 
-# Build-Ausgabe
+# Build-Ausgabe und Cache
 build/
 release/
+.cache/
 
 # Umgebungsvariablen (enthalten ggf. Zugangsdaten)
 .env
