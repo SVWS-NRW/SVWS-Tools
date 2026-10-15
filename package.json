@@ -8,7 +8,7 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "release": "node scripts/release.mjs",
-    "release:github": "gh release create v$npm_package_version --draft --title \"Release $npm_package_version\" --notes-file release/RELEASE_NOTES.md release/svws-tools.zip"
+    "release:github": "gh release create v$npm_package_version --draft --title \"Release $npm_package_version\" --notes-file release/RELEASE_NOTES.md release/svws-tools-$npm_package_version.zip"
   },
   "engines": {
     "node": ">=20"

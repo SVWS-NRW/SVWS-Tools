@@ -1,9 +1,17 @@
 # SVWS-Tools
 
-Bündelt die Web-Apps der SVWS-Tools zu einem ZIP-Paket `svws-tools.zip`, das der Installer des SVWS-Servers über das latest Release dieses Repositorys bezieht:
+Bündelt die Web-Apps der SVWS-Tools zu einem ZIP-Paket `svws-tools-<version>.zip`, das der Installer des SVWS-Servers aus dem latest Release dieses Repositorys bezieht.
 
-```
-https://github.com/SVWS-NRW/SVWS-Tools/releases/latest/download/svws-tools.zip
+## Paket abrufen (Installer)
+
+Der Dateiname enthält die Version. Der Installer ermittelt sie in zwei Schritten, ohne GitHub-API und ohne API-Limit:
+
+1. `https://github.com/SVWS-NRW/SVWS-Tools/releases/latest` aufrufen, ohne der Weiterleitung zu folgen. Der Header `Location` zeigt auf `…/releases/tag/v<version>`.
+2. `https://github.com/SVWS-NRW/SVWS-Tools/releases/download/v<version>/svws-tools-<version>.zip` laden.
+
+```bash
+tag=$(curl -sI https://github.com/SVWS-NRW/SVWS-Tools/releases/latest | sed -n 's|^location: .*/tag/\(v[^[:space:]]*\).*|\1|Ip')
+curl -sLO "https://github.com/SVWS-NRW/SVWS-Tools/releases/download/$tag/svws-tools-${tag#v}.zip"
 ```
 
 Hintergrund und Entscheidungen: [docs/adr/adr001-svws-tools-deployment.md](docs/adr/adr001-svws-tools-deployment.md)
@@ -11,7 +19,7 @@ Hintergrund und Entscheidungen: [docs/adr/adr001-svws-tools-deployment.md](docs/
 ## Paketstruktur
 
 ```
-tools/
+svws-tools-<version>.zip
 ├── start/          Startseite (aus src/start) mit Vorlage sichtbarkeit.example.js
 ├── konferenz/      SVWS-Conference
 ├── import/         SVWS-Import
@@ -21,7 +29,7 @@ tools/
 └── versions.json   Paketversion und enthaltene Tool-Versionen
 ```
 
-Jedes Tool liegt mit seiner `index.html` direkt in `tools/<name>/`. Die Ordnernamen sind verbindlich.
+Die Ordner liegen im ZIP auf oberster Ebene, ohne umschließenden Ordner. Das ZIP wird direkt in das Apps-Verzeichnis des SVWS-Servers entpackt (dort unter `/app/<name>/` erreichbar). Jedes Tool liegt mit seiner `index.html` direkt in `<name>/`. Die Ordnernamen sind verbindlich.
 
 ## Kacheln auf der Startseite ein- und ausblenden
 
@@ -66,7 +74,7 @@ Alle Tools stehen in [tools.json](tools.json):
 
 | Feld | Bedeutung |
 |---|---|
-| `name` | Zielordner unter `tools/` (a-z, 0-9, `-`) |
+| `name` | Zielordner im Paket (a-z, 0-9, `-`) |
 | `title` | Anzeigename für Release-Notes und `versions.json` |
 | `repo` | GitHub-Repository des Tools |
 | `asset` | Dateiname des Web-App-ZIPs im Release, `{version}` = Version ohne führendes `v` |
@@ -102,7 +110,7 @@ Der Build braucht keine GitHub-API und unterliegt daher keinem API-Limit: Das ak
 npm run build
 ```
 
-Erzeugt `release/svws-tools.zip` und `release/RELEASE_NOTES.md`. Zwischenstände liegen in `build/`. Heruntergeladene ZIPs bleiben in `.cache/downloads/` und werden wiederverwendet, solange sich die Version nicht ändert. Den Cache leeren mit `rm -rf .cache`. Fehlt ein Asset oder ist eine `index.html` nicht vorhanden, bricht der Build ab.
+Erzeugt `release/svws-tools-<version>.zip` (Version aus `package.json`) und `release/RELEASE_NOTES.md`. Pakete früherer Versionen in `release/` werden dabei entfernt. Zwischenstände liegen in `build/`. Heruntergeladene ZIPs bleiben in `.cache/downloads/` und werden wiederverwendet, solange sich die Version nicht ändert. Den Cache leeren mit `rm -rf .cache`. Fehlt ein Asset oder ist eine `index.html` nicht vorhanden, bricht der Build ab.
 
 ## Release erstellen
 
@@ -119,7 +127,7 @@ Das Skript [scripts/release.mjs](scripts/release.mjs) führt nacheinander aus:
 2. `npm version …` – erhöht die Version in `package.json`, erzeugt Commit und Tag `v<version>`
 3. `npm run build` – baut das Paket
 4. `git push --follow-tags` – pusht Commit und Tag
-5. `npm run release:github` – legt den Release-Entwurf „Release `<version>`“ mit `svws-tools.zip` und den erzeugten Release-Notes an
+5. `npm run release:github` – legt den Release-Entwurf „Release `<version>`“ mit `svws-tools-<version>.zip` und den erzeugten Release-Notes an
 
 Anschließend auf GitHub unter **Releases** den Entwurf prüfen und mit **Publish release** veröffentlichen. Erst danach liefert die Latest-URL das neue Paket aus.
 

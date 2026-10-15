@@ -10,12 +10,12 @@ Rund um den SVWS-Server gibt es mehrere eigenständige Web-Anwendungen („SVWS-
 
 | Tool | Quelle (latest Release) | Asset-Muster | Zielordner im Paket |
 |---|---|---|---|
-| Konferenz | `SVWS-NRW/SVWS-Conference` | `svws-conference-<version>-webserver.zip` | `tools/konferenz/` |
-| Import | `SVWS-NRW/SVWS-Import` | `SVWS-Import-<version>-webapp.zip` | `tools/import/` |
-| Prognos | `SVWS-NRW/SVWS-Prognos` | `SVWS-Prognos-<version>-webserver.zip` | `tools/prognos/` |
-| GradeHub | `SVWS-NRW/SVWS-GradeHub` | `gradehub-<version>-webserver.zip` | `tools/gradehub/` |
-| Laufbahnplanung | `SVWS-NRW/SVWS-Server` | `SVWS-Laufbahnplanung-<version>.zip` | `tools/laufbahn/` |
-| Startseite | dieses Repository | – | `tools/start/` |
+| Konferenz | `SVWS-NRW/SVWS-Conference` | `svws-conference-<version>-webserver.zip` | `konferenz/` |
+| Import | `SVWS-NRW/SVWS-Import` | `SVWS-Import-<version>-webapp.zip` | `import/` |
+| Prognos | `SVWS-NRW/SVWS-Prognos` | `SVWS-Prognos-<version>-webserver.zip` | `prognos/` |
+| GradeHub | `SVWS-NRW/SVWS-GradeHub` | `gradehub-<version>-webserver.zip` | `gradehub/` |
+| Laufbahnplanung | `SVWS-NRW/SVWS-Server` | `SVWS-Laufbahnplanung-<version>.zip` | `laufbahn/` |
+| Startseite | dieses Repository | – | `start/` |
 
 Stand 2026-10-14 liefern alle Quell-ZIPs ihre Web-App flach aus (`index.html` und `assets/` direkt im Root, kein Wrapper-Verzeichnis).
 
@@ -25,14 +25,14 @@ Als Vorlage für das gewünschte Ergebnis diente ein von Hand zusammengestelltes
 
 ## Ziele
 
-1. **Ein Paket, eine Bezugsquelle:** Dieses Repository erzeugt ein ZIP `svws-tools.zip`, das alle SVWS-Tools enthält, und veröffentlicht es als GitHub-Release.
-2. **Stabile Latest-URL für den Installer:** Der SVWS-Server-Installer holt das Paket über eine feste URL ohne Versionsnummer, z. B.
-   `https://github.com/SVWS-NRW/SVWS-Tools/releases/latest/download/svws-tools.zip`,
-   und packt es in seinen Installer. Er muss die einzelnen Tools nicht kennen.
+1. **Ein Paket, eine Bezugsquelle:** Dieses Repository erzeugt ein ZIP `svws-tools-<version>.zip`, das alle SVWS-Tools enthält, und veröffentlicht es als GitHub-Release.
+2. **Latest Release für den Installer:** Der SVWS-Server-Installer holt das Paket aus dem latest Release dieses Repositorys und packt es in seinen Installer. Er muss die einzelnen Tools nicht kennen. Die Version ermittelt er über die Weiterleitung von
+   `https://github.com/SVWS-NRW/SVWS-Tools/releases/latest` (→ `…/tag/v<version>`) und lädt dann
+   `https://github.com/SVWS-NRW/SVWS-Tools/releases/download/v<version>/svws-tools-<version>.zip`.
 3. **Immer die aktuellen Tool-Versionen:** Für jedes Tool wird standardmäßig das Web-App-ZIP aus dem jeweils neuesten (latest) Release seines Quell-Repositorys verwendet. Bei Bedarf kann pro Tool eine feste Version eingetragen werden.
 4. **Flexibel erweiterbar:** Die Tools werden deklarativ in einer zentralen Konfigurationsdatei beschrieben (Name, Quell-Repository, Asset-Muster, Zielordner). Ein neues Tool aufzunehmen heißt, einen Eintrag hinzuzufügen, nicht den Build-Code zu ändern.
-5. **Feste Paketstruktur:** Jedes Tool liegt unter `tools/<name>/`, mit `index.html` direkt in diesem Ordner. Diese Struktur ist der Vertrag zum Installer und zum SVWS-Server.
-6. **Nachvollziehbarkeit:** Jedes Release dokumentiert, welche Version jedes Tools enthalten ist (z. B. in einer `tools/versions.json` im ZIP und in den Release-Notes).
+5. **Feste Paketstruktur:** Jedes Tool liegt im ZIP auf oberster Ebene unter `<name>/`, mit `index.html` direkt in diesem Ordner. Es gibt keinen umschließenden Ordner, das ZIP wird direkt in das Apps-Verzeichnis des SVWS-Servers entpackt. Diese Struktur ist der Vertrag zum Installer und zum SVWS-Server.
+6. **Nachvollziehbarkeit:** Jedes Release dokumentiert, welche Version jedes Tools enthalten ist (z. B. in einer `versions.json` im ZIP und in den Release-Notes).
 7. **Sauberer Build:** Der Build läuft in einem leeren Arbeitsverzeichnis. Dateien älterer Tool-Versionen dürfen nicht im Paket landen.
 8. **Robustheit:** Fehlt ein erwartetes Asset oder ist ein ZIP ungültig, bricht der Build mit einer klaren Meldung ab, statt ein unvollständiges Paket zu veröffentlichen.
 
@@ -44,7 +44,7 @@ Die Datei [tools.json](../../tools.json) listet alle Tools. Ein Eintrag hat dies
 
 | Feld | Bedeutung |
 |---|---|
-| `name` | Zielordner unter `tools/` (verbindlich, siehe unten) |
+| `name` | Zielordner im Paket (verbindlich, siehe unten) |
 | `title` | Anzeigename für Release-Notes und `versions.json` |
 | `repo` | GitHub-Repository, z. B. `SVWS-NRW/SVWS-Import` |
 | `asset` | Dateiname des Web-App-ZIPs im Release, `{version}` steht für die Versionsnummer ohne führendes `v` |
@@ -54,7 +54,7 @@ Die Datei [tools.json](../../tools.json) listet alle Tools. Ein Eintrag hat dies
 
 ### Ordnernamen
 
-Die Zielordner unter `tools/` sind verbindlich: `konferenz`, `import`, `prognos`, `gradehub`, `laufbahn`, `start`.
+Die Zielordner im Paket sind verbindlich: `konferenz`, `import`, `prognos`, `gradehub`, `laufbahn`, `start`.
 
 ### Startseite
 
@@ -70,7 +70,7 @@ JavaScript statt JSON, weil der SVWS-Server unter `/app/` nur Dateien innerhalb 
 
 Verworfen wurden:
 - ein Feld `visible` in `versions.json`: Diese Datei wird bei jedem Update ersetzt, die Einstellungen gingen verloren.
-- `tools/sichtbarkeit.json`: Wird vom SVWS-Server nicht ausgeliefert (siehe oben).
+- `sichtbarkeit.json` auf oberster Ebene: Wird vom SVWS-Server nicht ausgeliefert (siehe oben).
 
 ### Build
 
@@ -78,10 +78,10 @@ Verworfen wurden:
 
 1. leert `build/` und entfernt alte Ausgaben in `release/`,
 2. ermittelt pro Tool das Release-Tag: bei fester Version direkt, sonst über die Weiterleitung von `https://github.com/<repo>/releases/latest`,
-3. lädt das Asset über den öffentlichen Download-Link (oder nimmt es aus dem Cache `.cache/downloads/`) und entpackt es nach `build/svws-tools/tools/<name>/` bzw. kopiert den lokalen Ordner,
+3. lädt das Asset über den öffentlichen Download-Link (oder nimmt es aus dem Cache `.cache/downloads/`) und entpackt es nach `build/svws-tools/<name>/` bzw. kopiert den lokalen Ordner,
 4. prüft, dass in jedem Zielordner eine `index.html` liegt,
-5. schreibt `tools/versions.json` mit Paketversion und Tool-Versionen sowie die Vorlage `tools/start/sichtbarkeit.example.js`,
-6. erzeugt `release/svws-tools.zip` und `release/RELEASE_NOTES.md`.
+5. schreibt `versions.json` mit Paketversion und Tool-Versionen sowie die Vorlage `start/sichtbarkeit.example.js`,
+6. erzeugt `release/svws-tools-<version>.zip` und `release/RELEASE_NOTES.md`.
 
 Jeder Fehler bricht den Build ab.
 
@@ -99,7 +99,7 @@ Das Release wird lokal in diesem Repository angestoßen, wie im Projekt SVWS-Imp
 npm run release [patch|minor|major|<x.y.z>]
 ```
 
-[scripts/release.mjs](../../scripts/release.mjs) erhöht die Version (Commit und Tag), baut das Paket, pusht Commit und Tag und legt mit der GitHub CLI einen Release-Entwurf mit `svws-tools.zip` an. Erst wenn der Entwurf auf GitHub veröffentlicht ist, liefert die Latest-URL das neue Paket aus.
+[scripts/release.mjs](../../scripts/release.mjs) erhöht die Version (Commit und Tag), baut das Paket, pusht Commit und Tag und legt mit der GitHub CLI einen Release-Entwurf mit `svws-tools-<version>.zip` an. Erst wenn der Entwurf auf GitHub veröffentlicht ist, liefert die Latest-URL das neue Paket aus.
 
 ### Inhalt der Tools
 
@@ -136,3 +136,5 @@ Das Paket gibt keine Mindestversion des SVWS-Servers an.
 - **Konfigurations- und Impressumsdateien (2026-10-15):** Werden unverändert mitgeliefert, Ausnahmen über `patches` (GradeHub: `admintoolVisible: true`).
 - **Mindestversion SVWS-Server (2026-10-15):** Vorerst keine.
 - **Sichtbarkeit auf der Startseite (2026-10-15):** Eigene Datei `start/sichtbarkeit.js`, gepflegt vom IT-Dienstleister, nicht im Paket enthalten. Alle Kacheln sind schaltbar. JavaScript statt JSON, weil der SVWS-Server kein `.json` ausliefert.
+- **Dateiname des Pakets (2026-10-15):** `svws-tools-<version>.zip`, wie bei den anderen SVWS-Tools. Eine feste Latest-URL (`…/latest/download/svws-tools.zip`) entfällt damit; der Installer ermittelt die Version über die Weiterleitung von `…/releases/latest`. Verworfen: zusätzlich ein unversioniertes `svws-tools.zip` im Release.
+- **Struktur im ZIP (2026-10-15):** Die Tool-Ordner liegen auf oberster Ebene, ohne umschließenden Ordner `tools/`, damit das ZIP direkt in das Apps-Verzeichnis entpackt werden kann.

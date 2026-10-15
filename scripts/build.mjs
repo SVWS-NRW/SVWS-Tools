@@ -1,11 +1,11 @@
 #!/usr/bin/env node
-// Baut das Paket release/svws-tools.zip (und release/RELEASE_NOTES.md) aus den in tools.json eingetragenen Tools.
+// Baut das Paket release/svws-tools-<version>.zip (und release/RELEASE_NOTES.md) aus den in tools.json eingetragenen Tools.
 //
 // Aufruf:
 //   npm run build
 //
 // Pro Tool wird das Web-App-ZIP aus dem latest Release (oder dem Release zur festen
-// Version) geladen und nach tools/<name>/ entpackt. Lokale Tools (Feld "path") werden
+// Version) geladen und nach <name>/ entpackt (im ZIP auf oberster Ebene). Lokale Tools (Feld "path") werden
 // aus diesem Repository kopiert. Jeder Fehler bricht den Build ab.
 //
 // Die GitHub-API wird nicht benötigt: Das aktuelle Release ergibt sich aus der Weiterleitung von
@@ -17,7 +17,7 @@
 // Version und Dateiname nicht ändern (Cache leeren mit `rm -rf .cache`).
 
 import { execFileSync } from 'node:child_process'
-import { cpSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 const ROOT = new URL('..', import.meta.url).pathname
@@ -25,7 +25,6 @@ const BUILD_DIR = join(ROOT, 'build')
 const PACKAGE_DIR = join(BUILD_DIR, 'svws-tools')
 const DOWNLOAD_CACHE_DIR = join(ROOT, '.cache', 'downloads')
 const RELEASE_DIR = join(ROOT, 'release')
-const ZIP_FILE = join(RELEASE_DIR, 'svws-tools.zip')
 const NOTES_FILE = join(RELEASE_DIR, 'RELEASE_NOTES.md')
 const NAME_PATTERN = /^[a-z0-9][a-z0-9-]*$/
 const VERSION_PATTERN = /^\d+\.\d+\.\d+$/
@@ -170,19 +169,24 @@ function applyPatches(tool, target) {
 const tools = readJson('tools.json')
 validate(tools)
 const packageVersion = readJson('package.json').version
+const zipName = `svws-tools-${packageVersion}.zip`
+const ZIP_FILE = join(RELEASE_DIR, zipName)
 
 rmSync(BUILD_DIR, { recursive: true, force: true })
-rmSync(ZIP_FILE, { force: true })
+// Pakete früherer Versionen entfernen, damit in release/ nur das aktuelle liegt
+for (const file of existsSync(RELEASE_DIR) ? readdirSync(RELEASE_DIR) : []) {
+  if (/^svws-tools(-\d+\.\d+\.\d+)?\.zip$/.test(file)) rmSync(join(RELEASE_DIR, file))
+}
 rmSync(NOTES_FILE, { force: true })
 mkdirSync(DOWNLOAD_CACHE_DIR, { recursive: true })
-mkdirSync(join(PACKAGE_DIR, 'tools'), { recursive: true })
+mkdirSync(PACKAGE_DIR, { recursive: true })
 mkdirSync(RELEASE_DIR, { recursive: true })
 
 console.log(`▶ Baue SVWS-Tools ${packageVersion}\n`)
 
 const results = []
 for (const tool of tools) {
-  const target = join(PACKAGE_DIR, 'tools', tool.name)
+  const target = join(PACKAGE_DIR, tool.name)
   let info
   let patches
   try {
@@ -192,7 +196,7 @@ for (const tool of tools) {
     fail(`${tool.name}: ${error.message}`)
   }
   if (!existsSync(join(target, 'index.html'))) {
-    fail(`${tool.name}: Nach dem Entpacken liegt keine index.html in tools/${tool.name}/.`)
+    fail(`${tool.name}: Nach dem Entpacken liegt keine index.html in ${tool.name}/.`)
   }
   const pinned = tool.version ? ' (fest)' : ''
   const notes = [info.cacheInfo, patches && `${patches} Patch${patches > 1 ? 'es' : ''}`].filter(Boolean).join(', ')
@@ -205,12 +209,12 @@ const versions = {
   built: new Date().toISOString(),
   tools: results.map(({ name, title, version, source }) => ({ name, title, version, source })),
 }
-writeFileSync(join(PACKAGE_DIR, 'tools', 'versions.json'), JSON.stringify(versions, null, 2) + '\n')
+writeFileSync(join(PACKAGE_DIR, 'versions.json'), JSON.stringify(versions, null, 2) + '\n')
 
 // Vorlage für start/sichtbarkeit.js: alle Kacheln der Startseite (data-tool), eingeschaltet.
 // Die echte sichtbarkeit.js legt der IT-Dienstleister an; sie wird nicht mitgeliefert.
 // JavaScript statt JSON, weil der SVWS-Server unter /app/ keine .json-Dateien ausliefert.
-const startPage = join(PACKAGE_DIR, 'tools', 'start', 'index.html')
+const startPage = join(PACKAGE_DIR, 'start', 'index.html')
 if (existsSync(startPage)) {
   const cards = [...readFileSync(startPage, 'utf8').matchAll(/data-tool="([^"]+)"/g)].map(m => m[1])
   for (const r of results) {
@@ -225,10 +229,11 @@ if (existsSync(startPage)) {
     `window.SVWS_TOOLS_SICHTBARKEIT = ${JSON.stringify(example, null, 2)};`,
     '',
   ].join('\n')
-  writeFileSync(join(PACKAGE_DIR, 'tools', 'start', 'sichtbarkeit.example.js'), exampleJs)
+  writeFileSync(join(PACKAGE_DIR, 'start', 'sichtbarkeit.example.js'), exampleJs)
 }
 
-execFileSync('zip', ['-q', '-r', '-X', ZIP_FILE, 'tools'], { cwd: PACKAGE_DIR, stdio: 'inherit' })
+// Inhalt ohne umschließenden Ordner packen: Die Tool-Ordner liegen im ZIP auf oberster Ebene
+execFileSync('zip', ['-q', '-r', '-X', ZIP_FILE, '.'], { cwd: PACKAGE_DIR, stdio: 'inherit' })
 
 const notes = [
   '## Enthaltene Tools',
@@ -237,10 +242,10 @@ const notes = [
   '|---|---|---|---|',
   ...results.map(r => {
     const source = r.repo ? `[${r.repo}@${r.tag}](https://github.com/${r.repo}/releases/tag/${r.tag})` : `\`${r.source}\``
-    return `| ${r.title} | \`tools/${r.name}/\` | ${r.version ?? '–'}${r.pinned ? ' (fest)' : ''} | ${source} |`
+    return `| ${r.title} | \`${r.name}/\` | ${r.version ?? '–'}${r.pinned ? ' (fest)' : ''} | ${source} |`
   }),
   '',
 ]
 writeFileSync(NOTES_FILE, notes.join('\n'))
 
-console.log('\n✔ release/svws-tools.zip und release/RELEASE_NOTES.md erstellt.')
+console.log(`\n✔ release/${zipName} und release/RELEASE_NOTES.md erstellt.`)
