@@ -1,0 +1,49 @@
+[
+  {
+    "name": "start",
+    "title": "Startseite",
+    "path": "src/start"
+  },
+  {
+    "name": "konferenz",
+    "title": "SVWS-Konferenz",
+    "repo": "SVWS-NRW/SVWS-Conference",
+    "asset": "svws-conference-{version}-webserver.zip",
+    "version": null
+  },
+  {
+    "name": "import",
+    "title": "SVWS-Import",
+    "repo": "SVWS-NRW/SVWS-Import",
+    "asset": "SVWS-Import-{version}-webapp.zip",
+    "version": null
+  },
+  {
+    "name": "prognos",
+    "title": "SVWS-Prognos",
+    "repo": "SVWS-NRW/SVWS-Prognos",
+    "asset": "SVWS-Prognos-{version}-webserver.zip",
+    "version": null
+  },
+  {
+    "name": "gradehub",
+    "title": "SVWS-GradeHub",
+    "repo": "SVWS-NRW/SVWS-GradeHub",
+    "asset": "gradehub-{version}-webserver.zip",
+    "version": null,
+    "patches": [
+      {
+        "file": "config.js",
+        "search": "// admintoolVisible: true,",
+        "replace": "admintoolVisible: true,"
+      }
+    ]
+  },
+  {
+    "name": "laufbahn",
+    "title": "SVWS-Laufbahnplanung",
+    "repo": "SVWS-NRW/SVWS-Server",
+    "asset": "SVWS-Laufbahnplanung-{version}.zip",
+    "version": null
+  }
+]
