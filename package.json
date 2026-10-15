@@ -1,0 +1,16 @@
+{
+  "name": "svws-tools",
+  "version": "0.0.0",
+  "description": "Bündelt die Web-Apps der SVWS-Tools zu einem ZIP-Paket für den SVWS-Server-Installer",
+  "private": true,
+  "type": "module",
+  "license": "BSD-3-Clause",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "release": "node scripts/release.mjs",
+    "release:github": "gh release create v$npm_package_version --draft --title \"Release $npm_package_version\" --notes-file release/RELEASE_NOTES.md release/svws-tools.zip"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

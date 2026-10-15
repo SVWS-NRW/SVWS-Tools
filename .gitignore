@@ -1,0 +1,18 @@
+# Abhängigkeiten
+node_modules/
+
+# Build-Ausgabe
+build/
+release/
+
+# Umgebungsvariablen (enthalten ggf. Zugangsdaten)
+.env
+
+# Betriebssystem
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/*
+!.vscode/extensions.json
+.idea/
