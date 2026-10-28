@@ -1,6 +1,6 @@
 {
   "name": "svws-tools",
-  "version": "0.0.1",
+  "version": "1.5.0",
   "description": "Bündelt die Web-Apps der SVWS-Tools zu einem ZIP-Paket für den SVWS-Server-Installer",
   "private": true,
   "type": "module",
